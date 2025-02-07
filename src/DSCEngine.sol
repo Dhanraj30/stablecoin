@@ -247,3 +247,41 @@ contract DSCEngine is ReentrancyGuard {
         }
         revertIfHealthFactorIsBroken(msg.sender);
     }
+    ///////////////////
+    // Public Functions
+    ///////////////////
+    /*
+     * @param amountDscToMint: The amount of DSC you want to mint
+     * You can only mint DSC if you have enough collateral
+     */
+    function mintDsc(uint256 amountDscToMint) public moreThanZero(amountDscToMint) nonReentrant {
+        s_DSCMinted[msg.sender] += amountDscToMint;
+        revertIfHealthFactorIsBroken(msg.sender);
+        bool minted = i_dsc.mint(msg.sender, amountDscToMint);
+
+        if (minted != true) {
+            revert DSCEngine__MintFailed();
+        }
+    }
+
+    /*
+     * @param tokenCollateralAddress: The ERC20 token address of the collateral you're depositing
+     * @param amountCollateral: The amount of collateral you're depositing
+     */
+    function depositCollateral(
+        address tokenCollateralAddress,
+        uint256 amountCollateral
+    )
+        public
+        moreThanZero(amountCollateral)
+        nonReentrant
+        isAllowedToken(tokenCollateralAddress)
+    {
+        s_collateralDeposited[msg.sender][tokenCollateralAddress] += amountCollateral;
+        emit CollateralDeposited(msg.sender, tokenCollateralAddress, amountCollateral);
+        bool success = IERC20(tokenCollateralAddress).transferFrom(msg.sender, address(this), amountCollateral);
+        if (!success) {
+            revert DSCEngine__TransferFailed();
+        }
+    }
+}
